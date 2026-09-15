@@ -1,10 +1,20 @@
-const http = require('http')
-const port = 8080
+const app = require('express')()
+const PORT = 8080
 
-const server = http.createServer(function(req, res) {
-    res.end('Hello World!')
+app.get('/', (req, res) => {
+    res.send(`Server running on port ${PORT}`)
 })
 
-server.listen(port, function(error) {
-    console.log("Server running on " + port)
+//RESTful JWKS endpoint: serves non-expired keys 
+app.get('/jwks', (req, res) => {
+    res.send('JWKS endpoint')
+})
+
+//Authentication endpoint: returns unexpired, signed JWT
+app.post('/auth', (req, res) => {
+    res.send('Authentication endpoint')
+})
+
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`)
 })

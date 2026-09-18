@@ -2,6 +2,7 @@
   "dependencies": {
     "crypto": "^1.0.1",
     "express": "^5.2.1",
-    "jose": "^6.2.12"
+    "jose": "^6.2.12",
+    "jsonwebtoken": "^9.0.3"
   }
 }

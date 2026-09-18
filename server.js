@@ -1,6 +1,7 @@
 // Import Node.js modules
 const app = require("express")();
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const PORT = 8080;
 
 // Genereate RSA key pairs
@@ -40,10 +41,10 @@ function generateKey(expiration) {
 // timestamp for current time
 const now = Math.floor(Date.now() / 1000);
 
-//generate two keys, one expired and one valid, and puts them in an array
-const key1 = generateKey(now + 3600);
-const key2 = generateKey(now + 3600);
-const keys = [key1, key2];
+// generate two keys, one expired and one valid.
+const validKey = generateKey(now + 3600);
+const expiredKey = generateKey(now - 3600);
+const keys = [validKey, expiredKey];
 
 // JWKS endpoint: returns non-expired RSA keys
 app.get("/.well-known/jwks.json", (req, res) => {
@@ -59,11 +60,27 @@ app.get("/.well-known/jwks.json", (req, res) => {
 
 // Authentication endpoint: issues JWTs to the user
 app.post("/auth", (req, res) => {
-  const now = Math.floor(Date.now() / 1000);
+  // checks for "expired" in URL
+  const queryExpired = req.query.expired !== undefined;
+  const key = queryExpired ? expiredKey : validKey;
+
+  // Generates JWT
+  const token = jwt.sign({ sub: "Lorem Ipsum" }, key.privateKey, {
+    algorithm: "RS256",
+    keyid: key.kid,
+    expiresIn: queryExpired ? -3600 : 3600,
+  });
+
+  console.log(
+    `${queryExpired ? "EXPIRED" : "VALID"}\t\t keyID: ${key.kid} \t expiry: ${key.expiry}`,
+  );
+
+  // responds with JWT
+  res.json({ token });
 });
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}/`);
   console.log(`JWKS: http://localhost:${PORT}/.well-known/jwks.json`);
-  console.log(`Authentication: http://localhost:${PORT}/auth`);
+  console.log(`Authentication: http://localhost:${PORT}/auth\n`);
 });

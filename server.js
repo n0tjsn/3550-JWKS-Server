@@ -2,9 +2,10 @@
 const app = require("express")();
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const jest = require("jest");
 const PORT = 8080;
 
-// Genereate RSA key pairs
+// Generates RSA key pairs
 function generateKey(expiration) {
   const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
     modulusLength: 2048,
@@ -18,10 +19,10 @@ function generateKey(expiration) {
     },
   });
 
-  //key ID for identifying RSA keys
+  // Key ID for identifying RSA keys
   const kid = crypto.randomUUID();
 
-  // Convert public key to JWK
+  // Creates JWK fron public key
   const jwk = crypto.createPublicKey(publicKey).export({
     format: "jwk",
   });
@@ -38,10 +39,10 @@ function generateKey(expiration) {
   };
 }
 
-// timestamp for current time
+// Timestamp in seconds
 const now = Math.floor(Date.now() / 1000);
 
-// generate two keys, one expired and one valid.
+// Generate two keys, one expired and one valid.
 const validKey = generateKey(now + 3600);
 const expiredKey = generateKey(now - 3600);
 const keys = [validKey, expiredKey];
@@ -50,7 +51,7 @@ const keys = [validKey, expiredKey];
 app.get("/.well-known/jwks.json", (req, res) => {
   const now = Math.floor(Date.now() / 1000);
 
-  //filters out the non-expired keys into validKeys
+  // Filters out the non-expired keys into validKeys
   const validKeys = keys.filter((key) => key.expiry > now);
 
   res.json({
@@ -58,9 +59,9 @@ app.get("/.well-known/jwks.json", (req, res) => {
   });
 });
 
-// Authentication endpoint: issues JWTs to the user
+// Authentication endpoint: issues JWTs
 app.post("/auth", (req, res) => {
-  // checks for "expired" in URL
+  // Checks for "expired" in query
   const queryExpired = req.query.expired !== undefined;
   const key = queryExpired ? expiredKey : validKey;
 
@@ -75,7 +76,7 @@ app.post("/auth", (req, res) => {
     `${queryExpired ? "EXPIRED" : "VALID"}\t\t keyID: ${key.kid} \t expiry: ${key.expiry}`,
   );
 
-  // responds with JWT
+  // Responds with JWT
   res.json({ token });
 });
 

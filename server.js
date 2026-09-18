@@ -1,6 +1,6 @@
 // Import Node.js modules
-const app = require("express")(); //web framework
-const crypto = require("crypto"); //RSA key pair generation
+const app = require("express")();
+const crypto = require("crypto");
 const PORT = 8080;
 
 // Genereate RSA key pairs
@@ -17,7 +17,8 @@ function generateKey(expiration) {
     },
   });
 
-  const kid = crypto.randomUUID(); //key ID
+  //key ID for identifying RSA keys
+  const kid = crypto.randomUUID();
 
   // Convert public key to JWK
   const jwk = crypto.createPublicKey(publicKey).export({
@@ -36,7 +37,8 @@ function generateKey(expiration) {
   };
 }
 
-const now = Math.floor(Date.now() / 1000); // timestamp for current time
+// timestamp for current time
+const now = Math.floor(Date.now() / 1000);
 
 //generate two keys, one expired and one valid, and puts them in an array
 const key1 = generateKey(now + 3600);

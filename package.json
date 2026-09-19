@@ -5,7 +5,8 @@
     "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
-    "jest": "^30.5.2"
+    "jest": "^30.5.2",
+    "supertest": "^7.2.2"
   },
   "scripts": {
     "test": "jest --coverage"

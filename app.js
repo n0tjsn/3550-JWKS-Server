@@ -1,7 +1,7 @@
 // Import Node.js modules
 const app = require("express")(); // Framework for HTTP server
 const jwt = require("jsonwebtoken"); // JWT
-const { validKey, expiredKey, anotherKey, allKeys } = require("./keys");
+const { validKey, expiredKey, anotherKey, allKeys } = require("./keys"); // Imports from keys.js
 
 // JWKS endpoint: returns non-expired RSA keys
 app.get("/.well-known/jwks.json", (req, res) => {
@@ -29,6 +29,7 @@ app.post("/auth", (req, res) => {
     const queryExpired = req.query.expired !== undefined;
     const key = queryExpired ? expiredKey : validKey;
 
+    // Calculates expiry for token
     const now = Math.floor(Date.now() / 1000);
     const secUntilExpiry = key.expiry - now;
 

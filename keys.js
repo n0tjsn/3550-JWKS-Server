@@ -1,3 +1,4 @@
+// Key generation logic
 const crypto = require("crypto"); // JWK and keyID
 
 // Generates RSA key pairs
@@ -45,4 +46,5 @@ const expiredKey = generateKey(now - offsetHour);
 const anotherKey = generateKey(now + offsetHour * 2);
 const allKeys = [validKey, expiredKey, anotherKey];
 
+// Exports keys and key arrays
 module.exports = { validKey, expiredKey, anotherKey, allKeys };

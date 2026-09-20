@@ -1,18 +1,18 @@
 // Import Node.js modules
-const app = require("express")();
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
+const app = require("express")(); // framework for HTTP server
+const crypto = require("crypto"); // JWK and keyID
+const jwt = require("jsonwebtoken"); // JWT
 
 // Generates RSA key pairs
 function generateKey(expiration) {
   const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
-    modulusLength: 2048,
+    modulusLength: 2048, // key size
     publicKeyEncoding: {
-      type: "spki",
-      format: "pem",
+      type: "spki", //public key encoding scheme
+      format: "pem", // formats key as Base64 string
     },
     privateKeyEncoding: {
-      type: "pkcs8",
+      type: "pkcs8", // private key encoding scheme
       format: "pem",
     },
   });
@@ -24,24 +24,24 @@ function generateKey(expiration) {
   const jwk = crypto.createPublicKey(publicKey).export({
     format: "jwk",
   });
-  jwk.use = "sig";
-  jwk.alg = "RS256";
-  jwk.kid = kid;
+  jwk.use = "sig"; // signature
+  jwk.alg = "RS256"; // signing algorithm
+  jwk.kid = kid; // key ID
 
   return {
+    // returns key with various attributes
     kid: kid,
     publicKey: publicKey,
     privateKey: privateKey,
     jwk: jwk,
     expiry: expiration,
-    // status: expiration < now ? "expired" : "valid",
   };
 }
 
 // Timestamp in seconds
 const now = Math.floor(Date.now() / 1000);
 
-// Generate two keys, one expired and one valid.
+// Generate three keys, one valid and two valid, and stores them in an array of keys.
 const validKey = generateKey(now + 3600);
 const expiredKey = generateKey(now - 3600);
 const anotherKey = generateKey(now - 1000);
@@ -54,6 +54,7 @@ app.get("/.well-known/jwks.json", (req, res) => {
   // Filters out the non-expired keys into validKeys
   const validKeys = keys.filter((key) => key.expiry > now);
 
+  // Returns JSON containing valid JWKs from validKeys
   res.json({
     keys: validKeys.map((key) => key.jwk),
   });
@@ -65,7 +66,7 @@ app.post("/auth", (req, res) => {
   const queryExpired = req.query.expired !== undefined;
   const key = queryExpired ? expiredKey : validKey;
 
-  // Generates JWT
+  // Generates JWT with algorithm, key, and expiration timestamp
   const token = jwt.sign({ sub: "Lorem Ipsum" }, key.privateKey, {
     algorithm: "RS256",
     keyid: key.kid,
@@ -80,4 +81,5 @@ app.post("/auth", (req, res) => {
   res.json({ token });
 });
 
+// exports API to server.js
 module.exports = { app, validKey, expiredKey, anotherKey };

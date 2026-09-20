@@ -44,41 +44,52 @@ const now = Math.floor(Date.now() / 1000);
 // Generate three keys, one valid and two valid, and stores them in an array of keys.
 const validKey = generateKey(now + 3600);
 const expiredKey = generateKey(now - 3600);
-const anotherKey = generateKey(now - 1000);
-const keys = [validKey, expiredKey, anotherKey];
+const anotherKey = generateKey(now + 1000);
+const allKeys = [validKey, expiredKey, anotherKey];
 
 // JWKS endpoint: returns non-expired RSA keys
 app.get("/.well-known/jwks.json", (req, res) => {
-  const now = Math.floor(Date.now() / 1000);
+  try {
+    // Populates validKeys array with non-expired keys
 
-  // Filters out the non-expired keys into validKeys
-  const validKeys = keys.filter((key) => key.expiry > now);
+    // timestamp for comparing with key expiries
+    const now = Math.floor(Date.now() / 1000);
+    // Filters out the non-expired keys into validKeys
+    const validKeys = allKeys.filter((key) => key.expiry > now);
 
-  // Returns JSON containing valid JWKs from validKeys
-  res.json({
-    keys: validKeys.map((key) => key.jwk),
-  });
+    // Returns JSON containing valid JWKs from validKeys
+    res.json({
+      keys: validKeys.map((key) => key.jwk),
+    });
+  } catch (error) {
+    // Catches error and returns JSON containing error message
+    res.status(500).json("ERROR: Failed to issue key set");
+  }
 });
 
 // Authentication endpoint: issues JWTs
 app.post("/auth", (req, res) => {
-  // Checks for "expired" in query
-  const queryExpired = req.query.expired !== undefined;
-  const key = queryExpired ? expiredKey : validKey;
+  try {
+    // Checks for existence of "expired" in query to determine if client requested expired token with expired key
+    const queryExpired = req.query.expired !== undefined;
+    const key = queryExpired ? expiredKey : validKey;
 
-  // Generates JWT with algorithm, key, and expiration timestamp
-  const token = jwt.sign({ sub: "Lorem Ipsum" }, key.privateKey, {
-    algorithm: "RS256",
-    keyid: key.kid,
-    expiresIn: queryExpired ? -3600 : 3600,
-  });
+    // Generates JWT with algorithm, key, and expiration timestamp
+    const token = jwt.sign({ sub: "Lorem Ipsum" }, key.privateKey, {
+      algorithm: "RS256",
+      keyid: key.kid,
+      expiresIn: queryExpired ? -3600 : 3600,
+    });
 
-  console.log(
-    `${queryExpired ? "EXPIRED" : "VALID"}\t\t keyID: ${key.kid} \t expiry: ${key.expiry}`,
-  );
+    console.log(
+      `${queryExpired ? "EXPIRED" : "VALID"}\t\t keyID: ${key.kid} \t expiry: ${key.expiry}`,
+    );
 
-  // Responds with JWT
-  res.json({ token });
+    // Responds with JWT
+    res.json({ token });
+  } catch (error) {
+    res.status(500).json("ERROR: Failed to issue token");
+  }
 });
 
 // exports API to server.js

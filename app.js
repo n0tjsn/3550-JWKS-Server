@@ -40,9 +40,7 @@ app.post("/auth", (req, res) => {
       expiresIn: secUntilExpiry,
     });
 
-    console.log(
-      `${queryExpired ? "EXPIRED" : "VALID"}\t\t keyID: ${key.kid} \t expiry: ${key.expiry}`,
-    );
+    // console.log(`${queryExpired ? "EXPIRED" : "VALID"}\t\t keyID: ${key.kid} \t expiry: ${key.expiry}`);
 
     // Responds with JWT
     res.json({ token });

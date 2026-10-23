@@ -3,6 +3,14 @@ const app = require("express")(); // Framework for HTTP server
 const jwt = require("jsonwebtoken"); // JWT
 const { validKey, expiredKey, anotherKey, allKeys } = require("./keys"); // Imports from keys.js
 
+// Ensures that only GET requests are allowed for /jwks
+app.all("/.well-known/jwks.json", (req, res, next) => {
+  if (req.method !== "GET") {
+    return res.status(405).send("Method Not Allowed");
+  }
+  next();
+});
+
 // JWKS endpoint: returns non-expired RSA keys
 app.get("/.well-known/jwks.json", (req, res) => {
   try {
@@ -18,8 +26,16 @@ app.get("/.well-known/jwks.json", (req, res) => {
     });
   } catch (error) {
     // Catches error and returns JSON containing error message
-    res.status(500).json("ERROR: Failed to issue key set");
+    res.status(500).send("ERROR: Failed to issue key set");
   }
+});
+
+// Ensures that only POST requests are allowed for /auth
+app.all("/auth", (req, res, next) => {
+  if (req.method !== "POST") {
+    return res.status(405).send("Method Not Allowed");
+  }
+  next();
 });
 
 // Authentication endpoint: issues JWTs
@@ -45,7 +61,7 @@ app.post("/auth", (req, res) => {
     // Responds with JWT
     res.json({ token });
   } catch (error) {
-    res.status(500).json("ERROR: Failed to issue token");
+    res.status(500).send("ERROR: Failed to issue token");
   }
 });
 

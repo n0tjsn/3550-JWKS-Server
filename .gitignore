@@ -1,3 +1,4 @@
 .vscode/settings.json
 gradebot.exe
+jwks-server.js
 coverage/

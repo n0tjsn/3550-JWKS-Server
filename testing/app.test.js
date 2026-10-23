@@ -1,6 +1,6 @@
 const request = require("supertest");
 const jwt = require("jsonwebtoken");
-const { app, validKey, expiredKey } = require("./app.js");
+const { app, validKey, expiredKey } = require("../app.js");
 
 describe("JWKS endpoint", () => {
   test("GET returns status code 200 when response successfully sends", async () => {

@@ -10,7 +10,7 @@ function generateKey(expiration) {
       format: "pem", // formats key as Base64 string
     },
     privateKeyEncoding: {
-      type: "pkcs8", // private key encoding scheme
+      type: "pkcs1", // private key encoding scheme
       format: "pem",
     },
   });
@@ -32,7 +32,7 @@ function generateKey(expiration) {
     publicKey: publicKey,
     privateKey: privateKey,
     jwk: jwk,
-    expiry: expiration,
+    exp: expiration,
   };
 }
 
@@ -40,7 +40,7 @@ function generateKey(expiration) {
 const now = Math.floor(Date.now() / 1000);
 const offsetHour = 3600;
 
-// Generate three keys, one valid and two valid, and stores them in an array of keys.
+// Generate three keys, one valid and two invalid, and stores them in an array of keys.
 const validKey = generateKey(now + offsetHour);
 const expiredKey = generateKey(now - offsetHour);
 const anotherKey = generateKey(now + offsetHour * 2);

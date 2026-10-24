@@ -11,8 +11,16 @@ const initQuery = `
     kid INTEGER PRIMARY KEY AUTOINCREMENT,
     key BLOB NOT NULL,
     exp INTEGER NOT NULL
-);`;
+)`;
 db.exec(initQuery);
+
+// Prepare SQL query to safely insert data into database without potential for SQL intection
+const insertQuery = db.prepare("INSERT INTO keys (key, exp) VALUES (?, ?)");
+
+// Insert private keys and expiry into database
+allKeys.forEach((k) => {
+  insertQuery.run(k.privateKey, k.exp);
+});
 
 // Ensures that only GET requests are allowed for /jwks
 app.all("/.well-known/jwks.json", (req, res, next) => {
@@ -29,7 +37,7 @@ app.get("/.well-known/jwks.json", (req, res) => {
     // Timestamp for comparing with key expiries
     const now = Math.floor(Date.now() / 1000);
     // Filters out the non-expired keys into validKeys
-    const validKeys = allKeys.filter((key) => key.expiry > now);
+    const validKeys = allKeys.filter((key) => key.exp > now);
 
     // Returns JSON containing valid JWKs from validKeys
     res.json({
@@ -58,7 +66,7 @@ app.post("/auth", (req, res) => {
 
     // Calculates expiry for token
     const now = Math.floor(Date.now() / 1000);
-    const secUntilExpiry = key.expiry - now;
+    const secUntilExpiry = key.exp - now;
 
     // Generates JWT with algorithm, key, and expiration timestamp
     const token = jwt.sign({ sub: "Lorem Ipsum" }, key.privateKey, {
@@ -67,7 +75,7 @@ app.post("/auth", (req, res) => {
       expiresIn: secUntilExpiry,
     });
 
-    // console.log(`${queryExpired ? "EXPIRED" : "VALID"}\t\t keyID: ${key.kid} \t expiry: ${key.expiry}`);
+    // console.log(`${queryExpired ? "EXPIRED" : "VALID"}\t\t keyID: ${key.kid} \t exp: ${key.exp}`);
 
     // Responds with JWT
     res.json({ token });

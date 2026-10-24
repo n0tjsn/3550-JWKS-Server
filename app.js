@@ -1,7 +1,18 @@
 // Import Node.js modules
 const app = require("express")(); // Framework for HTTP server
 const jwt = require("jsonwebtoken"); // JWT
+const sqlite = require("sqlite").verbose(); // SQLite
 const { validKey, expiredKey, anotherKey, allKeys } = require("./keys"); // Imports from keys.js
+
+//Create and/or open database for private keys
+const db = new sqlite.Database("totally_not_my_privateKeys.db");
+const initQuery = `
+  CREATE TABLE IF NOT EXISTS keys(
+    kid INTEGER PRIMARY KEY AUTOINCREMENT,
+    key BLOB NOT NULL,
+    exp INTEGER NOT NULL
+);`;
+db.exec(initQuery);
 
 // Ensures that only GET requests are allowed for /jwks
 app.all("/.well-known/jwks.json", (req, res, next) => {

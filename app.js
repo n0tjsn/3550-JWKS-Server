@@ -1,7 +1,7 @@
 // Import Node.js modules
 const app = require("express")(); // Framework for HTTP server
 const jwt = require("jsonwebtoken"); // JWT
-const sqlite = require("sqlite").verbose(); // SQLite
+const sqlite = require("sqlite3").verbose(); // SQLite
 const { validKey, expiredKey, anotherKey, allKeys } = require("./keys"); // Imports from keys.js
 
 //Create and/or open database for private keys

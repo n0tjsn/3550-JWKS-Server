@@ -2,6 +2,7 @@
 const app = require("express")(); // Framework for HTTP server
 const jwt = require("jsonwebtoken"); // JWT
 const sqlite = require("sqlite3").verbose(); // SQLite
+const crypto = require("crypto"); // Public key generation
 const { validKey, expiredKey, anotherKey, allKeys } = require("./keys"); // Imports from keys.js
 
 //Create and/or open database for private keys
@@ -33,15 +34,28 @@ app.all("/.well-known/jwks.json", (req, res, next) => {
 // JWKS endpoint: returns non-expired RSA keys
 app.get("/.well-known/jwks.json", (req, res) => {
   try {
-    // Populates validKeys array with non-expired keys
-    // Timestamp for comparing with key expiries
+    // Timestamp for the current time to compare with exp
     const now = Math.floor(Date.now() / 1000);
-    // Filters out the non-expired keys into validKeys
-    const validKeys = allKeys.filter((key) => key.exp > now);
 
-    // Returns JSON containing valid JWKs from validKeys
-    res.json({
-      keys: validKeys.map((key) => key.jwk),
+    // Prepare query to safely read all non-expired keys
+    const getQuery = db.prepare("SELECT * FROM keys WHERE exp > ?");
+
+    // Runs the query based on the current timestamp (now)
+    getQuery.all([now], (err, rows) => {
+      if (err) return res.status(500).send("ERROR: Failed to issue key set");
+
+      // Creates new public key from the returned private key and adds it to valid
+      const validKeys = rows.map((row) => ({
+        ...crypto.createPublicKey(row.key).export({
+          format: "jwk",
+        }),
+        use: "sig",
+        alg: "RS256",
+        kid: row.kid,
+      }));
+
+      // Returns JSON containing valid JWKs from validKeys
+      res.json({ keys: validKeys });
     });
   } catch (error) {
     // Catches error and returns JSON containing error message

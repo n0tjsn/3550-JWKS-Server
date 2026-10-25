@@ -6,18 +6,18 @@ const { validKey, expiredKey, anotherKey, allKeys } = require("./keys"); // Impo
 
 //Create and/or open database for private keys
 const db = new sqlite.Database("totally_not_my_privateKeys.db");
-const initQuery = `
+const tableQuery = `
   CREATE TABLE IF NOT EXISTS keys(
     kid INTEGER PRIMARY KEY AUTOINCREMENT,
     key BLOB NOT NULL,
     exp INTEGER NOT NULL
 )`;
-db.exec(initQuery);
+db.exec(tableQuery);
 
 // Prepare SQL query to safely insert data into database without potential for SQL intection
 const insertQuery = db.prepare("INSERT INTO keys (key, exp) VALUES (?, ?)");
 
-// Insert private keys and expiry into database
+// Write ave private keys and expiry to database
 allKeys.forEach((k) => {
   insertQuery.run(k.privateKey, k.exp);
 });
@@ -62,23 +62,28 @@ app.post("/auth", (req, res) => {
   try {
     // Checks for existence of "expired" in query to determine if client requested expired token with expired key
     const queryExpired = req.query.expired !== undefined;
-    const key = queryExpired ? expiredKey : validKey;
 
     // Calculates expiry for token
     const now = Math.floor(Date.now() / 1000);
-    const secUntilExpiry = key.exp - now;
 
-    // Generates JWT with algorithm, key, and expiration timestamp
-    const token = jwt.sign({ sub: "Lorem Ipsum" }, key.privateKey, {
-      algorithm: "RS256",
-      keyid: key.kid,
-      expiresIn: secUntilExpiry,
+    // Prepare query to read data from database based on when the requested query expired:
+    const postQuery = queryExpired
+      ? "SELECT * FROM keys WHERE exp <= ? LIMIT 1" // If the query is expired, read one expired key.
+      : "SELECT * FROM keys WHERE exp > ? LIMIT 1"; // Else (unexpired), read one valid key
+
+    // Runs the query based on the current timestamp (now)
+    db.get(postQuery, [now], (err, row) => {
+      if (err) return res.status(500).send("ERROR: Failed to issue token");
+
+      // Generates signed JWT with algorithm, key, and expiration timestamp
+      const token = jwt.sign({ user: "Lorem Ipsum" }, row.key, {
+        algorithm: "RS256",
+        keyid: String(row.kid),
+        expiresIn: row.exp - now,
+      });
+      // Respond with JWT
+      res.send(token);
     });
-
-    // console.log(`${queryExpired ? "EXPIRED" : "VALID"}\t\t keyID: ${key.kid} \t exp: ${key.exp}`);
-
-    // Responds with JWT
-    res.json({ token });
   } catch (error) {
     res.status(500).send("ERROR: Failed to issue token");
   }

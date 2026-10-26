@@ -1,11 +1,11 @@
 // Import Node.js modules
 const app = require("express")(); // Framework for HTTP server
-const jwt = require("jsonwebtoken"); // JWT
-const sqlite = require("sqlite3").verbose(); // SQLite
+const jwt = require("jsonwebtoken"); // Generates JWTs
+const sqlite = require("sqlite3").verbose(); // SQLite database for storing
 const crypto = require("crypto"); // Public key generation
 const { validKey, expiredKey, anotherKey, allKeys } = require("./keys"); // Imports from keys.js
 
-//Create and/or open database for private keys
+//Create and/or open database for private keys based on provided table schema
 const db = new sqlite.Database("totally_not_my_privateKeys.db");
 const tableQuery = `
   CREATE TABLE IF NOT EXISTS keys(
@@ -13,12 +13,13 @@ const tableQuery = `
     key BLOB NOT NULL,
     exp INTEGER NOT NULL
 )`;
+// Execute query to create/open database
 db.exec(tableQuery);
 
 // Prepare SQL query to safely insert data into database without potential for SQL intection
 const insertQuery = db.prepare("INSERT INTO keys (key, exp) VALUES (?, ?)");
 
-// Write ave private keys and expiry to database
+// Write all private keys and expiry to database. The kid is incremented automatically from 1
 allKeys.forEach((k) => {
   insertQuery.run(k.privateKey, k.exp);
 });
@@ -31,18 +32,20 @@ app.all("/.well-known/jwks.json", (req, res, next) => {
   next();
 });
 
-// JWKS endpoint: returns non-expired RSA keys
+// JWKS endpoint: returns non-expired RSA keys from database
 app.get("/.well-known/jwks.json", (req, res) => {
   try {
     // Timestamp for the current time to compare with exp
     const now = Math.floor(Date.now() / 1000);
 
-    // Prepare query to safely read all non-expired keys
+    // Prepare query to safely read all keys where exp is greater than the current time (i.e not expired yet)
     const getQuery = db.prepare("SELECT * FROM keys WHERE exp > ?");
 
-    // Runs the query based on the current timestamp (now)
+    // Runs the query based on the current time
     getQuery.all([now], (err, rows) => {
-      if (err) return res.status(500).send("ERROR: Failed to issue key set");
+      if (err) {
+        return res.status(500).send("ERROR: Failed to issue key set");
+      }
 
       // Creates new public key from the returned private key and adds it to valid
       const validKeys = rows.map((row) => ({
@@ -51,10 +54,10 @@ app.get("/.well-known/jwks.json", (req, res) => {
         }),
         use: "sig",
         alg: "RS256",
-        kid: row.kid,
+        kid: String(row.kid),
       }));
 
-      // Returns JSON containing valid JWKs from validKeys
+      // Respond with JSON containing valid JWKs
       res.json({ keys: validKeys });
     });
   } catch (error) {
@@ -71,13 +74,13 @@ app.all("/auth", (req, res, next) => {
   next();
 });
 
-// Authentication endpoint: issues JWTs
+// Authentication endpoint: issues JWTs from database
 app.post("/auth", (req, res) => {
   try {
     // Checks for existence of "expired" in query to determine if client requested expired token with expired key
     const queryExpired = req.query.expired !== undefined;
 
-    // Calculates expiry for token
+    // Timestamp for the current time to compare with exp
     const now = Math.floor(Date.now() / 1000);
 
     // Prepare query to read data from database based on when the requested query expired:
@@ -87,7 +90,9 @@ app.post("/auth", (req, res) => {
 
     // Runs the query based on the current timestamp (now)
     db.get(postQuery, [now], (err, row) => {
-      if (err) return res.status(500).send("ERROR: Failed to issue token");
+      if (err) {
+        return res.status(500).send("ERROR: Failed to issue token");
+      }
 
       // Generates signed JWT with algorithm, key, and expiration timestamp
       const token = jwt.sign({ user: "Lorem Ipsum" }, row.key, {
@@ -96,12 +101,12 @@ app.post("/auth", (req, res) => {
         expiresIn: row.exp - now,
       });
       // Respond with JWT
-      res.send(token);
+      res.json({ token });
     });
   } catch (error) {
     res.status(500).send("ERROR: Failed to issue token");
   }
 });
 
-// Exports API to server.js
+// Exports API
 module.exports = { app, validKey, expiredKey, anotherKey };

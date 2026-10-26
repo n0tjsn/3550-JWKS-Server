@@ -1,4 +1,5 @@
 .vscode/settings.json
 gradebot.exe
 jwks-server.js
+totally_not_my_privateKeys.db
 coverage/

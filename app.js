@@ -34,31 +34,32 @@ app.all("/.well-known/jwks.json", (req, res, next) => {
 
 // JWKS endpoint: returns non-expired RSA keys from database
 app.get("/.well-known/jwks.json", (req, res) => {
+  // Timestamp for the current time to compare with exp
+  const now = Math.floor(Date.now() / 1000);
+
+  // Prepare query to safely read all keys where exp is greater than the current time (i.e not expired yet)
+  const getQuery = db.prepare("SELECT * FROM keys WHERE exp > ?");
   try {
-    // Timestamp for the current time to compare with exp
-    const now = Math.floor(Date.now() / 1000);
-
-    // Prepare query to safely read all keys where exp is greater than the current time (i.e not expired yet)
-    const getQuery = db.prepare("SELECT * FROM keys WHERE exp > ?");
-
     // Runs the query based on the current time
     getQuery.all([now], (err, rows) => {
       if (err) {
         return res.status(500).send("ERROR: Failed to issue key set");
       }
-
-      // Creates new public key from the returned private key and adds it to valid
-      const validKeys = rows.map((row) => ({
-        ...crypto.createPublicKey(row.key).export({
-          format: "jwk",
-        }),
-        use: "sig",
-        alg: "RS256",
-        kid: String(row.kid),
-      }));
-
-      // Respond with JSON containing valid JWKs
-      res.json({ keys: validKeys });
+      try {
+        // Creates new public key from the returned private key and adds it to valid
+        const validKeys = rows.map((row) => ({
+          ...crypto.createPublicKey(row.key).export({
+            format: "jwk",
+          }),
+          use: "sig",
+          alg: "RS256",
+          kid: String(row.kid),
+        }));
+        // Respond with JSON containing valid JWKs
+        res.json({ keys: validKeys });
+      } catch (error) {
+        res.status(500).send("ERROR: Failed to issue key set");
+      }
     });
   } catch (error) {
     // Catches error and returns JSON containing error message
@@ -95,13 +96,16 @@ app.post("/auth", (req, res) => {
       }
 
       // Generates signed JWT with algorithm, key, and expiration timestamp
-      const token = jwt.sign({ user: "Lorem Ipsum" }, row.key, {
-        algorithm: "RS256",
-        keyid: String(row.kid),
-        expiresIn: row.exp - now,
-      });
-      // Respond with JWT
-      res.json({ token });
+      try {
+        const token = jwt.sign({ sub: "Lorem Ipsum" }, row.key.toString(), {
+          algorithm: "RS256",
+          keyid: String(row.kid),
+          expiresIn: row.exp - now,
+        });
+        res.json({ token });
+      } catch (error) {
+        res.status(500).send("ERROR: Failed to issue token");
+      }
     });
   } catch (error) {
     res.status(500).send("ERROR: Failed to issue token");
